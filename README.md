@@ -20,3 +20,4 @@ Then run:
 cd /home/runner/work/sample_repository/sample_repository/SampleBlazorApp
 dotnet run
 ```
+I have edited the readme file
