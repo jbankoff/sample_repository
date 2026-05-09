@@ -1,0 +1,99 @@
+@page "/customers"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+
+<PageTitle>Customers</PageTitle>
+
+<h1>Customers</h1>
+
+<p>This page uses Entity Framework Core with SQL Server.</p>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-warning" role="alert">
+        @errorMessage
+    </div>
+}
+
+<EditForm Model="newCustomer" OnValidSubmit="AddCustomerAsync">
+    <DataAnnotationsValidator />
+    <div class="row g-2 mb-3">
+        <div class="col-md-4">
+            <InputText @bind-Value="newCustomer.Name" class="form-control" placeholder="Name" />
+        </div>
+        <div class="col-md-4">
+            <InputText @bind-Value="newCustomer.Email" class="form-control" placeholder="Email" />
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Add</button>
+        </div>
+    </div>
+</EditForm>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var customer in customers)
+        {
+            <tr>
+                <td>@customer.Name</td>
+                <td>@customer.Email</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private readonly List<Customer> customers = [];
+    private readonly Customer newCustomer = new() { Name = string.Empty, Email = string.Empty };
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomersAsync();
+    }
+
+    private async Task LoadCustomersAsync()
+    {
+        try
+        {
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            await db.Database.EnsureCreatedAsync();
+            customers.Clear();
+            customers.AddRange(await db.Customers.OrderBy(c => c.Name).ToListAsync());
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to connect to SQL Server. {ex.Message}";
+        }
+    }
+
+    private async Task AddCustomerAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newCustomer.Name) || string.IsNullOrWhiteSpace(newCustomer.Email))
+        {
+            return;
+        }
+
+        try
+        {
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            db.Customers.Add(new Customer { Name = newCustomer.Name, Email = newCustomer.Email });
+            await db.SaveChangesAsync();
+            newCustomer.Name = string.Empty;
+            newCustomer.Email = string.Empty;
+            await LoadCustomersAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to save to SQL Server. {ex.Message}";
+        }
+    }
+}
